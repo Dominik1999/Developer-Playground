@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import init, { example } from 'miden-wasm'; // Import the WASM bindings
+import { defaultNoteScript, defaultAccountCode, defaultTransactionScript } from './scriptDefaults';
 
 function App() {
   const [hashValue, setHashValue] = useState('');
-  const [noteScript, setNoteScript] = useState(''); // State to hold the note_script
-  const [accountCode, setAccountCode] = useState(''); // State to hold the note_script
-  const [transactionScript, setTransactionScript] = useState(''); // State to hold the note_script
-  const [wasmLoaded, setWasmLoaded] = useState(false); // Track if wasm is loaded
+  const [noteScript, setNoteScript] = useState(defaultNoteScript);
+  const [accountCode, setAccountCode] = useState(defaultAccountCode);
+  const [transactionScript, setTransactionScript] = useState(defaultTransactionScript);
+  const [wasmLoaded, setWasmLoaded] = useState(false);
 
   // Initialize the WASM module once on component mount
   useEffect(() => {
