@@ -42,16 +42,16 @@ pub const ACCOUNT_ID_SENDER: u64 = 0x800000000000001f; // 9223372036854775839
 pub const ACCOUNT_ID_REGULAR_ACCOUNT_UPDATABLE_CODE_OFF_CHAIN: u64 = 0x900000000000003f; // 10376293541461622847
 
 #[wasm_bindgen]
-pub fn example(account_code: &str, note_script: &str, transaction_script: &str) -> JsValue {
-    match inner_example(account_code, note_script, transaction_script) {
+pub fn example(account_code: &str, note_script: &str, note_inputs: Option<Vec<u64>>, transaction_script: &str) -> JsValue {
+    match inner_example(account_code, note_script, note_inputs, transaction_script) {
         Ok(result) => JsValue::from_str(&result),
         Err(err) => JsValue::from_str(&format!("Error: {:?}", err)),
     }
 }
 
-pub fn inner_example(account_code: &str, note_script: &str, transaction_script: &str) -> Result<String, JsValue> {
+pub fn inner_example(account_code: &str, note_script: &str, note_inputs: Option<Vec<u64>>, transaction_script: &str) -> Result<String, JsValue> {
     // Validate input scripts
-    if account_code.is_empty() || note_script.is_empty() || transaction_script.is_empty() {
+    if account_code.is_empty() || note_script.is_empty() || note_inputs.is_none() || transaction_script.is_empty() {
         return Err(JsValue::from_str("Input cannot be empty"));
     }
 
@@ -77,7 +77,7 @@ pub fn inner_example(account_code: &str, note_script: &str, transaction_script: 
         fungible_asset,
         note_script,
         sender_account_id,
-        vec![target_account_id.into()],
+        note_inputs.unwrap().iter().map(|&x| Felt::new(x)).collect(),
     )
     .map_err(|err| JsValue::from_str(&err.to_string()))?;
 
