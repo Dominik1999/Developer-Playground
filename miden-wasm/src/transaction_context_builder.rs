@@ -1,17 +1,12 @@
 // TRANSACTION CONTEXT BUILDER
 // ================================================================================================
-use alloc::{
-    collections::BTreeMap,
-    vec::Vec,
-};
+use alloc::{collections::BTreeMap, vec::Vec};
 
 use miden_lib::transaction::TransactionKernel;
 use miden_objects::{
     accounts::Account,
     assembly::Assembler,
-    notes::{
-        Note, NoteId,
-    },
+    notes::{Note, NoteId},
     transaction::{TransactionArgs, TransactionScript},
 };
 use vm_processor::{AdviceInputs, AdviceMap, Word};

@@ -2,9 +2,7 @@
 // MOCK HOST
 // ================================================================================================
 
-use alloc::{
-    collections::BTreeMap, format, rc::Rc, string::String, string::ToString, sync::Arc,
-};
+use alloc::{collections::BTreeMap, format, rc::Rc, string::String, string::ToString, sync::Arc};
 
 use miden_lib::transaction::{TransactionEvent, TransactionKernelError};
 use miden_objects::{

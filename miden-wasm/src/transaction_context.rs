@@ -11,9 +11,7 @@ use miden_objects::{
 use miden_tx::{
     DataStore, DataStoreError, TransactionExecutor, TransactionExecutorError, TransactionMastStore,
 };
-use vm_processor::{
-    AdviceInputs, ExecutionError, Host, Process, Program, StackInputs,
-};
+use vm_processor::{AdviceInputs, ExecutionError, Host, Process, Program, StackInputs};
 use winter_maybe_async::{maybe_async, maybe_await};
 
 use crate::mock_chain::{MockAuthenticator, MockChain};

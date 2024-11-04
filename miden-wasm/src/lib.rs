@@ -29,7 +29,7 @@ use miden_objects::{
         NoteType,
     },
     transaction::{TransactionArgs, TransactionScript},
-    Felt, NoteError, Word, ZERO, AccountError, TransactionScriptError,
+    AccountError, Felt, NoteError, TransactionScriptError, Word, ZERO,
 };
 use miden_tx::{auth::BasicAuthenticator, TransactionExecutor};
 use wasm_bindgen::prelude::*;
@@ -42,16 +42,30 @@ pub const ACCOUNT_ID_SENDER: u64 = 0x800000000000001f; // 9223372036854775839
 pub const ACCOUNT_ID_REGULAR_ACCOUNT_UPDATABLE_CODE_OFF_CHAIN: u64 = 0x900000000000003f; // 10376293541461622847
 
 #[wasm_bindgen]
-pub fn example(account_code: &str, note_script: &str, note_inputs: Option<Vec<u64>>, transaction_script: &str) -> JsValue {
+pub fn example(
+    account_code: &str,
+    note_script: &str,
+    note_inputs: Option<Vec<u64>>,
+    transaction_script: &str,
+) -> JsValue {
     match inner_example(account_code, note_script, note_inputs, transaction_script) {
         Ok(result) => JsValue::from_str(&result),
         Err(err) => JsValue::from_str(&format!("Error: {:?}", err)),
     }
 }
 
-pub fn inner_example(account_code: &str, note_script: &str, note_inputs: Option<Vec<u64>>, transaction_script: &str) -> Result<String, JsValue> {
+pub fn inner_example(
+    account_code: &str,
+    note_script: &str,
+    note_inputs: Option<Vec<u64>>,
+    transaction_script: &str,
+) -> Result<String, JsValue> {
     // Validate input scripts
-    if account_code.is_empty() || note_script.is_empty() || note_inputs.is_none() || transaction_script.is_empty() {
+    if account_code.is_empty()
+        || note_script.is_empty()
+        || note_inputs.is_none()
+        || transaction_script.is_empty()
+    {
         return Err(JsValue::from_str("Input cannot be empty"));
     }
 
@@ -69,7 +83,8 @@ pub fn inner_example(account_code: &str, note_script: &str, note_inputs: Option<
     let (target_pub_key, falcon_auth) = get_new_pk_and_authenticator();
 
     let target_account =
-        get_account_with_account_code(account_code, target_account_id, target_pub_key, None).map_err(|err| JsValue::from_str(&err.to_string()))?;
+        get_account_with_account_code(account_code, target_account_id, target_pub_key, None)
+            .map_err(|err| JsValue::from_str(&err.to_string()))?;
 
     // CONSTRUCT NOTE
     // --------------------------------------------------------------------------------------------
@@ -83,7 +98,8 @@ pub fn inner_example(account_code: &str, note_script: &str, note_inputs: Option<
 
     // CONSTRUCT TX ARGS
     // --------------------------------------------------------------------------------------------
-    let tx_script = build_transaction_script(transaction_script).map_err(|err| JsValue::from_str(&err.to_string()))?;
+    let tx_script = build_transaction_script(transaction_script)
+        .map_err(|err| JsValue::from_str(&err.to_string()))?;
     let tx_args_target = TransactionArgs::with_tx_script(tx_script);
 
     // CONSTRUCT AND EXECUTE TX
@@ -110,7 +126,17 @@ pub fn inner_example(account_code: &str, note_script: &str, note_inputs: Option<
     // Prove, serialize/deserialize and verify the transaction
     // assert!(prove_and_verify_transaction(executed_transaction.clone()).is_ok());
 
-    Ok(format!("args: {:?}", executed_transaction.account_delta()))
+    let account_code_commitment = executed_transaction.final_account().code_commitment().to_hex();
+    let account_storage_commitment = executed_transaction.final_account().storage_root().to_hex();
+    let account_vault_commitment = executed_transaction.final_account().vault_root().to_hex();
+    let account_hash = executed_transaction.final_account().hash().to_hex();
+
+    Ok(format!("AccountDelta: {:?}, AccountCodeCommitment: {:?}, AccountStorageCommitment: {:?}, AccountVaultCommitment: {:?}, AccountHash: {:?},",
+    executed_transaction.account_delta(),
+    account_code_commitment,
+    account_storage_commitment,
+    account_vault_commitment,
+    account_hash))
 }
 
 pub fn get_account_with_account_code(
@@ -121,7 +147,8 @@ pub fn get_account_with_account_code(
 ) -> Result<Account, AccountError> {
     let assembler = TransactionKernel::assembler().with_debug_mode(true);
 
-    let account_code = AccountCode::compile(account_code_src, assembler).map_err(|err| err.into())?;
+    let account_code =
+        AccountCode::compile(account_code_src, assembler).map_err(|err| err.into())?;
     let account_storage =
         AccountStorage::new(vec![SlotItem::new_value(0, 0, public_key)], BTreeMap::new()).unwrap();
 
@@ -164,9 +191,12 @@ pub fn get_note_with_fungible_asset_and_script(
     Ok(Note::new(vault, metadata, recipient))
 }
 
-pub fn build_transaction_script(transaction_script: &str) -> Result<TransactionScript, TransactionScriptError> {
-    let compiled_tx_script = TransactionScript::compile(transaction_script, [], TransactionKernel::assembler())
-        .map_err(|err| err.into())?;
+pub fn build_transaction_script(
+    transaction_script: &str,
+) -> Result<TransactionScript, TransactionScriptError> {
+    let compiled_tx_script =
+        TransactionScript::compile(transaction_script, [], TransactionKernel::assembler())
+            .map_err(|err| err.into())?;
     Ok(compiled_tx_script)
 }
 
