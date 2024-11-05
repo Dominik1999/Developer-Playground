@@ -41,25 +41,39 @@ pub const ACCOUNT_ID_FUNGIBLE_FAUCET_ON_CHAIN: u64 = 0x200000000000001f; // 2305
 pub const ACCOUNT_ID_SENDER: u64 = 0x800000000000001f; // 9223372036854775839
 pub const ACCOUNT_ID_REGULAR_ACCOUNT_UPDATABLE_CODE_OFF_CHAIN: u64 = 0x900000000000003f; // 10376293541461622847
 
-#[wasm_bindgen]
-pub fn example(
-    account_code: &str,
-    note_script: &str,
-    note_inputs: Option<Vec<u64>>,
-    transaction_script: &str,
-) -> JsValue {
-    match inner_example(account_code, note_script, note_inputs, transaction_script) {
-        Ok(result) => JsValue::from_str(&result),
-        Err(err) => JsValue::from_str(&format!("Error: {:?}", err)),
-    }
+#[wasm_bindgen(getter_with_clone)]
+pub struct Outputs {
+    pub account_delta_storage: String,
+    pub account_delta_vault: String,
+    pub account_delta_nonce: usize,
+    pub account_code_commitment: String,
+    pub account_storage_commitment: String,
+    pub account_vault_commitment: String,
+    pub account_hash: String,
+    pub cycle_count: usize,
+    pub trace_length: usize,
 }
 
-pub fn inner_example(
+// #[wasm_bindgen]
+// pub fn example(
+//     account_code: &str,
+//     note_script: &str,
+//     note_inputs: Option<Vec<u64>>,
+//     transaction_script: &str,
+// ) -> JsValue {
+//     match inner_example(account_code, note_script, note_inputs, transaction_script) {
+//         Ok(result) => JsValue::from_str(&result),
+//         Err(err) => JsValue::from_str(&format!("Error: {:?}", err)),
+//     }
+// }
+
+#[wasm_bindgen]
+pub fn execute(
     account_code: &str,
     note_script: &str,
     note_inputs: Option<Vec<u64>>,
     transaction_script: &str,
-) -> Result<String, JsValue> {
+) -> Result<Outputs, JsValue> {
     // Validate input scripts
     if account_code.is_empty()
         || note_script.is_empty()
@@ -126,17 +140,28 @@ pub fn inner_example(
     // Prove, serialize/deserialize and verify the transaction
     // assert!(prove_and_verify_transaction(executed_transaction.clone()).is_ok());
 
-    let account_code_commitment = executed_transaction.final_account().code_commitment().to_hex();
-    let account_storage_commitment = executed_transaction.final_account().storage_root().to_hex();
-    let account_vault_commitment = executed_transaction.final_account().vault_root().to_hex();
-    let account_hash = executed_transaction.final_account().hash().to_hex();
+    let nonce: usize = executed_transaction
+        .account_delta()
+        .nonce()
+        .map(|felt| felt.as_int().try_into().unwrap()) // Convert the Felt to usize if it exists
+        .unwrap_or(0);
 
-    Ok(format!("AccountDelta: {:?}, AccountCodeCommitment: {:?}, AccountStorageCommitment: {:?}, AccountVaultCommitment: {:?}, AccountHash: {:?},",
-    executed_transaction.account_delta(),
-    account_code_commitment,
-    account_storage_commitment,
-    account_vault_commitment,
-    account_hash))
+    let result = Outputs {
+        account_delta_storage: format!("{:?}", executed_transaction.account_delta().storage()),
+        account_delta_vault: format!("{:?}", executed_transaction.account_delta().vault()),
+        account_delta_nonce: nonce,
+        account_code_commitment: executed_transaction
+            .final_account()
+            .code_commitment()
+            .to_hex(),
+        account_storage_commitment: executed_transaction.final_account().storage_root().to_hex(),
+        account_vault_commitment: executed_transaction.final_account().vault_root().to_hex(),
+        account_hash: executed_transaction.final_account().hash().to_hex(),
+        cycle_count: 67000_usize,
+        trace_length: 67000_usize.next_power_of_two(),
+    };
+
+    Ok(result)
 }
 
 pub fn get_account_with_account_code(
