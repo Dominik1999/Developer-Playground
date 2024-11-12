@@ -6,7 +6,7 @@ use alloc::{collections::BTreeMap, format, rc::Rc, string::String, string::ToStr
 
 use miden_lib::transaction::{TransactionEvent, TransactionKernelError};
 use miden_objects::{
-    accounts::{AccountCode, AccountProcedureInfo, AccountStub, AccountVaultDelta},
+    accounts::{AccountCode, AccountHeader, AccountProcedureInfo, AccountVaultDelta},
     assembly::mast::MastForest,
     Digest, Felt,
 };
@@ -32,7 +32,7 @@ pub struct MockHost {
 impl MockHost {
     /// Returns a new [MockHost] instance with the provided [AdviceInputs].
     pub fn new(
-        account: AccountStub,
+        account: AccountHeader,
         advice_inputs: AdviceInputs,
         mast_store: Rc<TransactionMastStore>,
     ) -> Self {

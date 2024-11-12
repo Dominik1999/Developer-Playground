@@ -9,7 +9,8 @@ use miden_objects::{
     transaction::{ExecutedTransaction, InputNote, InputNotes, TransactionArgs, TransactionInputs},
 };
 use miden_tx::{
-    DataStore, DataStoreError, TransactionExecutor, TransactionExecutorError, TransactionMastStore,
+    auth::TransactionAuthenticator, DataStore, DataStoreError, TransactionExecutor,
+    TransactionExecutorError, TransactionMastStore,
 };
 use vm_processor::{AdviceInputs, ExecutionError, Host, Process, Program, StackInputs};
 use winter_maybe_async::{maybe_async, maybe_await};
@@ -57,10 +58,10 @@ impl TransactionContext {
         let mast_store = Rc::new(TransactionMastStore::new());
 
         let test_lib = TransactionKernel::kernel();
-        mast_store.insert(Arc::new(test_lib.mast_forest().clone()));
+        mast_store.insert(test_lib.mast_forest().clone());
 
         let program = self.assembler.clone().assemble_program(code).unwrap();
-        mast_store.insert(Arc::new(program.mast_forest().clone()));
+        mast_store.insert(program.mast_forest().clone());
         mast_store.load_transaction_code(&self.tx_inputs, &self.tx_args);
 
         CodeExecutor::new(MockHost::new(
@@ -79,8 +80,10 @@ impl TransactionContext {
 
         let account_id = self.account().id();
         let block_num = mock_data_store.tx_inputs.block_header().block_num();
-        let tx_executor =
-            TransactionExecutor::new(mock_data_store, self.authenticator.map(Rc::new));
+        let authenticator = self
+            .authenticator
+            .map(|auth| Arc::new(auth) as Arc<dyn TransactionAuthenticator>);
+        let tx_executor = TransactionExecutor::new(Arc::new(mock_data_store), authenticator);
         let notes: Vec<NoteId> = self
             .tx_inputs
             .input_notes()
