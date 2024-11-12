@@ -2,6 +2,7 @@ export const defaultNoteScript = `
 use.miden::account
 use.miden::note
 use.miden::contracts::wallets::basic->wallet
+use.account_component::account_module
 
 # ERRORS
 # =================================================================================================
@@ -96,17 +97,24 @@ begin
 
     exec.add_note_assets_to_account
     # => [...]
+
+    call.account_module::custom
+    push.3.3.3.3 push.1 call.account_module::custom_set_item dropw dropw
 end
 
 `;
 
 export const defaultAccountCode = `
-export.::miden::contracts::wallets::basic::receive_asset
-export.::miden::contracts::wallets::basic::create_note
-export.::miden::contracts::wallets::basic::move_asset_to_note
-export.::miden::contracts::auth::basic::auth_tx_rpo_falcon512
+use.miden::account
+use.std::sys
+
 export.custom
     push.1 drop
+end
+
+export.custom_set_item
+    exec.account::set_item
+    exec.sys::truncate_stack
 end
 `;
 

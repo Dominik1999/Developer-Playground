@@ -11,7 +11,7 @@ use miden_objects::{
 };
 use vm_processor::{AdviceInputs, AdviceMap, Word};
 
-use crate::mock_chain::{MockAuthenticator, MockChain, MockChainBuilder};
+use crate::mock_chain::{MockAuthenticator, MockChainBuilder};
 use crate::transaction_context::TransactionContext;
 
 // Structs
@@ -26,7 +26,6 @@ pub struct TransactionContextBuilder {
     expected_output_notes: Vec<Note>,
     tx_script: Option<TransactionScript>,
     note_args: BTreeMap<NoteId, Word>,
-    mock_chain: Option<MockChain>,
 }
 
 impl TransactionContextBuilder {
@@ -42,7 +41,6 @@ impl TransactionContextBuilder {
             authenticator: None,
             advice_inputs: Default::default(),
             note_args: BTreeMap::new(),
-            mock_chain: None,
         }
     }
 
@@ -52,13 +50,10 @@ impl TransactionContextBuilder {
     }
 
     pub fn build(self) -> TransactionContext {
-        let mut mock_chain = if let Some(mock_chain) = self.mock_chain {
-            mock_chain
-        } else {
-            MockChainBuilder::default()
-                .notes(self.input_notes.clone())
-                .build()
-        };
+        let mut mock_chain = MockChainBuilder::default()
+            .notes(self.input_notes.clone())
+            .build();
+
         for _ in 0..4 {
             mock_chain.seal_block(None);
         }

@@ -11,6 +11,7 @@ function App() {
   const [accountCode, setAccountCode] = useState(defaultAccountCode);
   const [transactionScript, setTransactionScript] = useState(defaultTransactionScript);
   const [wasmLoaded, setWasmLoaded] = useState(false);
+  const [error, setError] = useState(null);  // Add error state
 
   // Initialize the WASM module once on component mount
   useEffect(() => {
@@ -32,21 +33,38 @@ function App() {
     setNoteInputs(updatedNoteInputs);
   };
 
-  const handleHash = () => {
+  const handleHash = async () => {
     if (!wasmLoaded) {
       console.error("WASM module is not loaded yet");
       return;
     }
 
-    // Filter and convert noteInputs to BigInt
-    const noteInputsBigInt = noteInputs
-      .map(input => input.trim() !== "" ? BigInt(input) : null)
-      .filter(input => input !== null)
-      .slice(0, 4);
+    try {
+      // Unload and reinitialize the WASM module
+      console.log("Reinitializing WASM module...");
+      await init(); // Reinitialize WASM module before every execution
 
-    // Call the execute function and set outputs
-    const result = execute(accountCode, noteScript, noteInputsBigInt, transactionScript);
-    setOutputs(result);
+      // Convert noteInputs to BigInt values
+      const noteInputsBigInt = noteInputs
+        .map(input => input.trim() !== "" ? BigInt(input) : null)
+        .filter(input => input !== null)
+        .slice(0, 4);
+
+      console.log("Account Code:", accountCode);
+      console.log("Note Script:", noteScript);
+      console.log("Note Inputs:", noteInputsBigInt);
+      console.log("Transaction Script:", transactionScript);
+
+      // Reset previous outputs
+      setOutputs(null);
+
+      // Call the execute function asynchronously and set outputs
+      const result = await execute(accountCode, noteScript, noteInputsBigInt, transactionScript);
+      setOutputs(result);
+    } catch (error) {
+      console.error("Execution failed:", error);
+      setError(`Execution failed: ${error.message || error}`);  // Set the error message
+    }
   };
 
   return (
@@ -56,21 +74,21 @@ function App() {
         placeholder="Type your note_script here..."
         value={noteScript}
         onChange={(e) => setNoteScript(e.target.value)}
-        rows={10}
+        rows={20}
         cols={50}
       />
       <textarea
         placeholder="Type your transactionScript here..."
         value={transactionScript}
         onChange={(e) => setTransactionScript(e.target.value)}
-        rows={10}
+        rows={20}
         cols={50}
       />
       <textarea
         placeholder="Type your accountCode here..."
         value={accountCode}
         onChange={(e) => setAccountCode(e.target.value)}
-        rows={10}
+        rows={20}
         cols={50}
       />
       <h2>Note Inputs</h2>
@@ -105,6 +123,13 @@ function App() {
           <p><strong>Account Hash:</strong> {outputs.account_hash}</p>
           <p><strong>Cycle Count:</strong> {outputs.cycle_count}</p>
           <p><strong>Trace Length:</strong> {outputs.trace_length}</p>
+        </div>
+      )}
+      {/* Display the error message if there is an error */}
+      {error && (
+        <div style={{ color: 'red', marginTop: '20px' }}>
+          <h3>Error:</h3>
+          <p>{error}</p>
         </div>
       )}
     </div>
