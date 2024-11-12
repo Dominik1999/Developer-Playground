@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import init, { Outputs, execute } from 'miden-wasm'; // Import the WASM bindings
 import { defaultNoteScript, defaultAccountCode, defaultTransactionScript, defaultBasicWallet, defaultBasicAuthentication } from './scriptDefaults';
 
-
-
 function App() {
   const [outputs, setOutputs] = useState(null);
   const [noteScript, setNoteScript] = useState(defaultNoteScript);
@@ -15,20 +13,6 @@ function App() {
   const [wasmLoaded, setWasmLoaded] = useState(false);
   const [error, setError] = useState(null);  // Add error state
 
-  // Initialize the WASM module once on component mount
-  useEffect(() => {
-    const initializeWasm = async () => {
-      try {
-        await init(); // Initialize WebAssembly
-        setWasmLoaded(true); // Set to true when wasm is successfully loaded
-      } catch (error) {
-        console.error("Failed to initialize WASM module:", error);
-      }
-    };
-
-    initializeWasm();
-  }, []);
-
   const handleNoteInputChange = (index, value) => {
     const updatedNoteInputs = [...noteInputs];
     updatedNoteInputs[index] = /^\d*$/.test(value) ? value : "0";
@@ -36,37 +20,31 @@ function App() {
   };
 
   const handleHash = async () => {
-    if (!wasmLoaded) {
-      console.error("WASM module is not loaded yet");
-      return;
-    }
+    init().then(() => {
 
-    try {
-      // Unload and reinitialize the WASM module
-      console.log("Reinitializing WASM module...");
-      await init(); // Reinitialize WASM module before every execution
+      try {
+        // Convert noteInputs to BigInt values
+        const noteInputsBigInt = noteInputs
+          .map(input => input.trim() !== "" ? BigInt(input) : null)
+          .filter(input => input !== null)
+          .slice(0, 4);
 
-      // Convert noteInputs to BigInt values
-      const noteInputsBigInt = noteInputs
-        .map(input => input.trim() !== "" ? BigInt(input) : null)
-        .filter(input => input !== null)
-        .slice(0, 4);
+        console.log("Account Code:", accountCode);
+        console.log("Note Script:", noteScript);
+        console.log("Note Inputs:", noteInputsBigInt);
+        console.log("Transaction Script:", transactionScript);
 
-      console.log("Account Code:", accountCode);
-      console.log("Note Script:", noteScript);
-      console.log("Note Inputs:", noteInputsBigInt);
-      console.log("Transaction Script:", transactionScript);
+        // Reset previous outputs
+        setOutputs(null);
 
-      // Reset previous outputs
-      setOutputs(null);
-
-      // Call the execute function asynchronously and set outputs
-      const result = await execute(accountCode, noteScript, noteInputsBigInt, transactionScript);
-      setOutputs(result);
-    } catch (error) {
-      console.error("Execution failed:", error);
-      setError(`Execution failed: ${error.message || error}`);  // Set the error message
-    }
+        // Call the execute function asynchronously and set outputs
+        const result = execute(accountCode, noteScript, noteInputsBigInt, transactionScript);
+        setOutputs(result);
+      } catch (error) {
+        console.error("Execution failed:", error);
+        setError(`Execution failed: ${error.message || error}`);  // Set the error message
+      }
+    }).finally(() => setWasmLoaded(false));
   };
 
   return (
@@ -130,6 +108,7 @@ function App() {
       </div>
       <br />
       <button onClick={handleHash}>Execute Transaction</button>
+      <button onClick={() => window.location.reload()} style={{ marginLeft: '10px' }}>Reload Page</button> {/* Reload button */}
 
       {outputs && (
         <div>
