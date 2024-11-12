@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import init, { Outputs, execute } from 'miden-wasm'; // Import the WASM bindings
-import { defaultNoteScript, defaultAccountCode, defaultTransactionScript } from './scriptDefaults';
+import { defaultNoteScript, defaultAccountCode, defaultTransactionScript, defaultBasicWallet, defaultBasicAuthentication } from './scriptDefaults';
+
+
 
 function App() {
   const [outputs, setOutputs] = useState(null);
@@ -70,46 +72,64 @@ function App() {
   return (
     <div className="App">
       <h1>Developer Playground</h1>
-      <textarea
-        placeholder="Type your note_script here..."
-        value={noteScript}
-        onChange={(e) => setNoteScript(e.target.value)}
-        rows={20}
-        cols={50}
-      />
-      <textarea
-        placeholder="Type your transactionScript here..."
-        value={transactionScript}
-        onChange={(e) => setTransactionScript(e.target.value)}
-        rows={20}
-        cols={50}
-      />
-      <textarea
-        placeholder="Type your accountCode here..."
-        value={accountCode}
-        onChange={(e) => setAccountCode(e.target.value)}
-        rows={20}
-        cols={50}
-      />
-      <h2>Note Inputs</h2>
-      <table>
-        <tbody>
-          {noteInputs.map((input, index) => (
-            <tr key={index}>
-              <td>
-                <input
-                  type="number"
-                  value={input}
-                  onChange={(e) => handleNoteInputChange(index, e.target.value)}
-                  placeholder={`Input ${index + 1}`}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div style={{ display: 'flex', gap: '20px' }}>
+        <textarea
+          placeholder="Type your note_script here..."
+          value={noteScript}
+          onChange={(e) => setNoteScript(e.target.value)}
+          rows={20}
+          cols={50}
+        />
+        <textarea
+          placeholder="Type your transactionScript here..."
+          value={transactionScript}
+          onChange={(e) => setTransactionScript(e.target.value)}
+          rows={20}
+          cols={50}
+        />
+        <div>
+          <h2>Note Inputs</h2>
+          <table>
+            <tbody>
+              {noteInputs.map((input, index) => (
+                <tr key={index}>
+                  <td>
+                    <input
+                      type="number"
+                      value={input}
+                      onChange={(e) => handleNoteInputChange(index, e.target.value)}
+                      placeholder={`Input ${index + 1}`}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
+        <textarea
+          placeholder="Type your accountCode here..."
+          value={accountCode}
+          onChange={(e) => setAccountCode(e.target.value)}
+          rows={20}
+          cols={50}
+        />
+        <textarea
+          value={defaultBasicWallet}
+          rows={20}
+          cols={50}
+          readOnly
+        />
+        <textarea
+          value={defaultBasicAuthentication}
+          rows={20}
+          cols={50}
+          readOnly
+        />
+      </div>
       <br />
-      <button onClick={handleHash}>Execute Transaction!!1</button>
+      <button onClick={handleHash}>Execute Transaction</button>
 
       {outputs && (
         <div>

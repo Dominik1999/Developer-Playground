@@ -123,3 +123,15 @@ begin
     call.::miden::contracts::auth::basic::auth_tx_rpo_falcon512
 end
 `;
+
+export const defaultBasicWallet = `
+// Basic wallet code here
+export.::miden::contracts::wallets::basic::receive_asset
+export.::miden::contracts::wallets::basic::create_note
+export.::miden::contracts::wallets::basic::move_asset_to_note
+`;
+
+export const defaultBasicAuthentication = `
+// Basic authentication code here
+export.::miden::contracts::auth::basic::auth_tx_rpo_falcon512
+`;
