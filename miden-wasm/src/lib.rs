@@ -42,6 +42,12 @@ use miden_tx::TransactionExecutor;
 use wasm_bindgen::prelude::*;
 use web_sys::console;
 
+// Added this line to import the necessary libraries for more detailed logging
+extern crate console_error_panic_hook;
+use wasm_bindgen::prelude::*;
+
+
+
 // First up let's take a look of binding `console.log` manually, without the
 // help of `web_sys`. Here we're writing the `#[wasm_bindgen]` annotations
 // manually ourselves, and the correctness of our program relies on the
@@ -104,9 +110,26 @@ pub fn execute(
     note_inputs: Option<Vec<u64>>,
     transaction_script: &str,
 ) -> Result<Outputs, JsValue> {
-    env_logger::init();
-    console::log_1(&"Starting Execution".into());
 
+
+    // this line here enables detailed logging, very useful for debugging
+    console_error_panic_hook::set_once();
+
+    // the one of the main errors in the code was that the logger was being initialized twice
+    // so here we try to initialzie it and if it fails we just log the error message becasue it was already initialized
+
+
+    // a alternative approach would be to initialize the logger only once in the #[wasm_bindgen(start)] entry point 
+    // I can implement that way if needed this if needed
+
+
+    if let Err(e) = env_logger::try_init() {
+        // Logger was already initialized, which is fine
+        console::log_1(&format!("Logger was already initialized: {:?}", e).into());
+    }
+
+
+    console::log_1(&"Starting Execution".into());
     // Validate input scripts
     if account_code.is_empty()
         || note_script.is_empty()
@@ -236,20 +259,21 @@ pub fn execute(
         cycle_count: 67000_usize,
         trace_length: 67000_usize.next_power_of_two(),
     };
-
-    // let result = Outputs {
-    //     account_delta_storage: "bla".into(),
-    //     account_delta_vault: "bla".into(),
-    //     account_delta_nonce: 4,
-    //     account_code_commitment: "bla".into(),
-    //     account_storage_commitment: "bla".into(),
-    //     account_vault_commitment: "bla".into(),
-    //     account_hash: "bla".into(),
-    //     cycle_count: 12,
-    //     trace_length: 3,
-    // };
-
+    /*
+    let result = Outputs {
+        account_delta_storage: "bla".into(),
+        account_delta_vault: "bla".into(),
+        account_delta_nonce: 4,
+        account_code_commitment: "bla".into(),
+        account_storage_commitment: "bla".into(),
+        account_vault_commitment: "bla".into(),
+        account_hash: "bla".into(),
+        cycle_count: 12,
+        trace_length: 3,
+    };
+    */
     Ok(result)
+    
 }
 
 fn create_account_component_library(account_code: &str) -> Result<Library, Report> {
