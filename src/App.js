@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import init, { Outputs, execute } from 'miden-wasm'; // Import the WASM bindings
+import init,{ Outputs, execute } from 'miden-wasm';
 import { defaultNoteScript, defaultAccountCode, defaultTransactionScript, defaultBasicWallet, defaultBasicAuthentication } from './scriptDefaults';
 
 function App() {
@@ -19,8 +19,25 @@ function App() {
     setNoteInputs(updatedNoteInputs);
   };
 
+  // Will run once on mount, init the wasm module only once.
+  useEffect(() => {
+    init()
+      .then(() => {
+        setWasmLoaded(true);
+        console.log("WASM initialized successfully");
+      })
+      .catch(error => {
+        console.error("Failed to initialize WASM:", error);
+        setError("Failed to initialize WASM: " + error.message);
+      });
+  }, []); // Empty dependency array = run once on mount
+
+  // calling wasm init() everytime the function is called is bad practice so I moved it to run it only once on mount
   const handleHash = async () => {
-    init().then(() => {
+    if (!wasmLoaded) { // check if wasm is loaded
+      setError("WASM not initialized yet");
+      return;
+    }
 
       try {
         // Convert noteInputs to BigInt values
@@ -44,7 +61,6 @@ function App() {
         console.error("Execution failed:", error);
         setError(`Execution failed: ${error.message || error}`);  // Set the error message
       }
-    }).finally(() => setWasmLoaded(false));
   };
 
   return (
