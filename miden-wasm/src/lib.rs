@@ -44,44 +44,6 @@ use web_sys::console;
 
 // Added this line to import the necessary libraries for more detailed logging
 extern crate console_error_panic_hook;
-use wasm_bindgen::prelude::*;
-
-
-
-// First up let's take a look of binding `console.log` manually, without the
-// help of `web_sys`. Here we're writing the `#[wasm_bindgen]` annotations
-// manually ourselves, and the correctness of our program relies on the
-// correctness of these annotations!
-
-#[wasm_bindgen]
-extern "C" {
-    // Use `js_namespace` here to bind `console.log(..)` instead of just
-    // `log(..)`
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-
-    // The `console.log` is quite polymorphic, so we can bind it with multiple
-    // signatures. Note that we need to use `js_name` to ensure we always call
-    // `log` in JS.
-    #[wasm_bindgen(js_namespace = console, js_name = log)]
-    fn log_u32(a: u32);
-
-    // Multiple arguments too!
-    #[wasm_bindgen(js_namespace = console, js_name = log)]
-    fn log_many(a: &str, b: &str);
-}
-
-// Next let's define a macro that's like `println!`, only it works for
-// `console.log`. Note that `println!` doesn't actually work on the Wasm target
-// because the standard library currently just eats all output. To get
-// `println!`-like behavior in your app you'll likely want a macro like this.
-
-macro_rules! console_log {
-    // Note that this is using the `log` function imported above during
-    // `bare_bones`
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
-
 
 // CONSTANTS
 // ================================================================================================
@@ -109,27 +71,18 @@ pub fn execute(
     note_script: &str,
     note_inputs: Option<Vec<u64>>,
     transaction_script: &str,
+    asset: Option<u64>,
+    wallet: bool,
+    auth: bool,
 ) -> Result<Outputs, JsValue> {
-
-
     // this line here enables detailed logging, very useful for debugging
     console_error_panic_hook::set_once();
-
-    // the one of the main errors in the code was that the logger was being initialized twice
-    // so here we try to initialzie it and if it fails we just log the error message becasue it was already initialized
-
-
-    // a alternative approach would be to initialize the logger only once in the #[wasm_bindgen(start)] entry point 
-    // I can implement that way if needed this if needed
-
 
     if let Err(e) = env_logger::try_init() {
         // Logger was already initialized, which is fine
         console::log_1(&format!("Logger was already initialized: {:?}", e).into());
     }
 
-
-    console::log_1(&"Starting Execution".into());
     // Validate input scripts
     if account_code.is_empty()
         || note_script.is_empty()
@@ -139,15 +92,21 @@ pub fn execute(
         return Err(JsValue::from_str("One or more input scripts are empty"));
     }
 
-    console_log!("Executing with account_code: {}", account_code);
-    console_log!("Executing with note_script: {}", note_script);
-    console_log!("Executing with transaction_script: {}", transaction_script);
-    console_log!("Note inputs provided: {:?}", note_inputs);
-
     // Create assets
-    let faucet_id = AccountId::try_from(ACCOUNT_ID_FUNGIBLE_FAUCET_ON_CHAIN)
-        .map_err(|err| format!("faucet id is wrong: {:?}", err))?;
-    let fungible_asset: Asset = FungibleAsset::new(faucet_id, 100).map_err(|err| format!("fungible asset is wrong: {:?}", err))?.into();
+    let asset_vec: Vec<Asset> = if let Some(asset) = asset {
+        let faucet_id = AccountId::try_from(ACCOUNT_ID_FUNGIBLE_FAUCET_ON_CHAIN)
+            .map_err(|err| format!("faucet id is wrong: {:?}", err))?;
+
+        let fungible_asset: Asset = FungibleAsset::new(faucet_id, asset)
+            .map_err(|err| format!("fungible asset is wrong: {:?}", err))?
+            .into();
+
+        // Return a vector with the single asset
+        vec![fungible_asset]
+    } else {
+        // Return an empty vec if no asset is provided
+        vec![]
+    };
 
     // Create sender and target account
     let sender_account_id = AccountId::try_from(ACCOUNT_ID_SENDER)
@@ -157,15 +116,18 @@ pub fn execute(
     // --------------------------------------------------------------------------------------------
     let target_account_id =
         AccountId::try_from(ACCOUNT_ID_REGULAR_ACCOUNT_UPDATABLE_CODE_OFF_CHAIN)
-        .map_err(|err| format!("Target Account id is wrong: {:?}", err))?;
+            .map_err(|err| format!("Target Account id is wrong: {:?}", err))?;
     let (target_pub_key, falcon_auth) = get_new_pk_and_authenticator();
 
-    let account_code_library = create_account_component_library(account_code).map_err(|err| format!("Account library cannot be built: {:?}", err))?;
+    let account_code_library = create_account_component_library(account_code)
+        .map_err(|err| format!("Account library cannot be built: {:?}", err))?;
     let target_account = get_account_with_account_code(
         account_code_library.clone(),
         target_account_id,
         target_pub_key,
         None,
+        wallet,
+        auth,
     )
     .map_err(|err| format!("Account cannot be built: {:?}", err))?;
 
@@ -173,7 +135,7 @@ pub fn execute(
     // --------------------------------------------------------------------------------------------
     let note_inputs_felt: Vec<Felt> = note_inputs.unwrap().iter().map(|&x| Felt::new(x)).collect();
     let note = get_note_with_fungible_asset_and_script(
-        fungible_asset,
+        asset_vec,
         note_script,
         sender_account_id,
         note_inputs_felt,
@@ -182,7 +144,7 @@ pub fn execute(
     .map_err(|err| {
         log::error!("Failed to create note: {:?}", err); // Log the error message
         format!("Note cannot be built: {:?}", err)
-})?;
+    })?;
 
     // // CONSTRUCT TX ARGS
     // // --------------------------------------------------------------------------------------------
@@ -209,11 +171,14 @@ pub fn execute(
         .build();
 
     log::info!("Tx context build");
-    log::info!("Mast roots in account: {:?}", tx_context.account().code().num_procedures());
+    log::info!(
+        "Mast roots in account: {:?}",
+        tx_context.account().code().num_procedures()
+    );
 
     let executor =
         TransactionExecutor::new(Arc::new(tx_context.clone()), Some(falcon_auth.clone()));
-    
+
     let block_ref = tx_context.tx_inputs().block_header().block_num();
 
     let note_ids = tx_context
@@ -230,8 +195,8 @@ pub fn execute(
         .execute_transaction(target_account_id, block_ref, &note_ids, tx_args_target)
         .map_err(|err| {
             log::error!("Failed to create execution: {:?}", err); // Log the error message
-            format!("Execution failed: {:?}", err)}
-        )?;
+            format!("Execution failed: {:?}", err)
+        })?;
 
     // Prove, serialize/deserialize and verify the transaction
     // assert!(prove_and_verify_transaction(executed_transaction.clone()).is_ok());
@@ -259,21 +224,8 @@ pub fn execute(
         cycle_count: 67000_usize,
         trace_length: 67000_usize.next_power_of_two(),
     };
-    /*
-    let result = Outputs {
-        account_delta_storage: "bla".into(),
-        account_delta_vault: "bla".into(),
-        account_delta_nonce: 4,
-        account_code_commitment: "bla".into(),
-        account_storage_commitment: "bla".into(),
-        account_vault_commitment: "bla".into(),
-        account_hash: "bla".into(),
-        cycle_count: 12,
-        trace_length: 3,
-    };
-    */
+
     Ok(result)
-    
 }
 
 fn create_account_component_library(account_code: &str) -> Result<Library, Report> {
@@ -290,7 +242,7 @@ fn create_account_component_library(account_code: &str) -> Result<Library, Repor
 
     let account_library = assembler
         .assemble_library([account_component_module])
-        .map_err(|err| err )?;
+        .map_err(|err| err)?;
 
     Ok(account_library)
 }
@@ -300,6 +252,8 @@ pub fn get_account_with_account_code(
     account_id: AccountId,
     public_key: Word,
     assets: Option<Asset>,
+    wallet: bool,
+    auth: bool,
 ) -> Result<Account, AccountError> {
     log::info!("Building account");
 
@@ -311,13 +265,17 @@ pub fn get_account_with_account_code(
     .unwrap()
     .with_supports_all_types();
 
+    let mut components = vec![account_component];
+    if wallet {
+        components.push(BasicWallet.into());
+    }
+    if auth {
+        components.push(RpoFalcon512::new(PublicKey::new(public_key)).into());
+    }
+
     let (account_code, account_storage) = Account::initialize_from_components(
         account_id.account_type(),
-        &[
-            BasicWallet.into(),
-            RpoFalcon512::new(PublicKey::new(public_key)).into(),
-            account_component,
-        ],
+        &components,
     )
     .unwrap();
 
@@ -336,7 +294,7 @@ pub fn get_account_with_account_code(
 }
 
 pub fn get_note_with_fungible_asset_and_script(
-    fungible_asset: Asset,
+    asset_vec: Vec<Asset>,
     note_script: &str,
     sender_id: AccountId,
     inputs: Vec<Felt>,
@@ -349,7 +307,8 @@ pub fn get_note_with_fungible_asset_and_script(
         .map_err(|err| {
             log::error!("Failed to create note assembler with library: {:?}", err); // Log the error message
             err
-        }).unwrap();
+        })
+        .unwrap();
 
     let note_script = NoteScript::compile(note_script, assembler).map_err(|err| {
         log::error!("Failed to compile note script: {:?}", err); // Log the error message
@@ -358,7 +317,8 @@ pub fn get_note_with_fungible_asset_and_script(
     log::info!("Note script compiled");
     const SERIAL_NUM: Word = [Felt::new(1), Felt::new(2), Felt::new(3), Felt::new(4)];
 
-    let vault = NoteAssets::new(vec![fungible_asset.into()]).map_err(|err| err.into())?;
+    let vault = NoteAssets::new(asset_vec).map_err(|err| err.into())?;
+
     let metadata = NoteMetadata::new(
         sender_id,
         NoteType::Public,
@@ -547,6 +507,9 @@ pub fn test_execute_wasm() {
         note_script,
         Some(note_inputs),
         transaction_script,
+        Some(100u64),
+        true,
+        true,
     );
 
     // Ensure the result is Ok
